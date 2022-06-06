@@ -28,7 +28,9 @@ impl PairValues {
 
 struct Shared {
     buff : Vec<PairValues>,
-    nelem: i32
+    nelem: i32,
+    head : usize,
+    tail : usize
 }
 
 impl Shared {
@@ -43,7 +45,9 @@ impl Shared {
 
         Shared {
             buff : vec,
-            nelem : 0
+            nelem : 0,
+            head : 0,
+            tail : 0
         }
     }
 }
@@ -107,7 +111,12 @@ fn main() {
             else {
                 let mut buff = cvarp.wait_while(buff, |buff| buff.nelem == 5).unwrap();
 
-                for j in 0..5 {
+                let head = buff.head;
+                buff.buff[head].a = vec_a.pop().unwrap();
+                buff.buff[head].b = vec_b.pop().unwrap();
+                buff.head = (head + 1) % 5;
+                buff.nelem += 1;
+               /* for j in 0..5 {
 
                     if buff.buff[j].a == 0 && buff.buff[j].b == 0 {
 
@@ -125,10 +134,9 @@ fn main() {
                         println!("current elements: ({}, {})", buff.buff[j].a, buff.buff[j].b);
                         break;
                     }
-                }
+                } */
                 cvarc.notify_all();
             }
-
             
         }
     });
@@ -144,16 +152,25 @@ fn main() {
 
             println!("Thread n {} created!", i);
             loop {
-                let (lock, cvarp, cvarc) = &*shared_cons;
-                let buff = lock.lock().unwrap();
 
-                if buff.nelem == -1 {
-                    break;
-                }
+                let (lock, cvarp, cvarc) = &*shared_cons;
+                
+                let  buff = lock.lock().unwrap();
 
                 let mut buff = cvarc.wait_while(buff, |buff| buff.nelem == 0).unwrap();
 
-                for j in 0..5 {
+                if buff.nelem == -1 {
+                    println!("Thread {} morto", i);
+                    break;
+                }
+
+                let tail = buff.tail;
+                println!(" thread {} nelem {} tail {}", i,buff.nelem, tail);
+                tx_i.send(buff.buff[tail].a * buff.buff[tail].b).unwrap();
+                buff.tail = (tail + 1) % 5;
+                buff.nelem -= 1;
+
+               /* for j in 0..5 {
 
                     if buff.buff[j].a != 0 || buff.buff[j].b != 0 {
                         tx_i.send(buff.buff[j].a * buff.buff[j].b).unwrap();
@@ -162,9 +179,10 @@ fn main() {
                         buff.nelem -= 1; 
                         break;
                     }
-                }
+                } */
 
                 cvarp.notify_all();
+                
             };
         });
         handles.push(cons);

@@ -28,7 +28,7 @@ impl PairValues {
 
 struct Shared {
     buff : Vec<PairValues>,
-    nelem: u32
+    nelem: i32
 }
 
 impl Shared {
@@ -92,33 +92,44 @@ fn main() {
     let prod = thread::spawn(move || {
         println!("Produttore creato");
 
-        for _ in 0..size {
+        for i in 0..size+1 {
+          
 
             let (lock, cvarp, cvarc) = &*shared_prod;
             let buff = lock.lock().unwrap();
 
-            let mut buff = cvarp.wait_while(buff, |buff| buff.nelem == 5).unwrap();
-
-            for j in 0..5 {
-
-                if buff.buff[j].a == 0 && buff.buff[j].b == 0 {
-
-                    buff.buff[j].a = match vec_a.pop() {
-                        Some(x) => x,
-                        None => 0
-                    };
-
-                    buff.buff[j].b = match vec_b.pop() {
-                        Some(x) => x,
-                        None => 0
-                    };
-
-                    buff.nelem += 1;
-                    println!("current elements: ({}, {})", buff.buff[j].a, buff.buff[j].b);
-                    break;
-                }
+            if i == size {
+                let mut buff = cvarp.wait_while(buff, |buff| buff.nelem != 0).unwrap();
+                buff.nelem = -1;
+                cvarc.notify_all();
             }
-            cvarc.notify_all();
+
+            else {
+                let mut buff = cvarp.wait_while(buff, |buff| buff.nelem == 5).unwrap();
+
+                for j in 0..5 {
+
+                    if buff.buff[j].a == 0 && buff.buff[j].b == 0 {
+
+                        buff.buff[j].a = match vec_a.pop() {
+                            Some(x) => x,
+                            None => 0
+                        };
+
+                        buff.buff[j].b = match vec_b.pop() {
+                            Some(x) => x,
+                            None => 0
+                        };
+
+                        buff.nelem += 1;
+                        println!("current elements: ({}, {})", buff.buff[j].a, buff.buff[j].b);
+                        break;
+                    }
+                }
+                cvarc.notify_all();
+            }
+
+            
         }
     });
 
@@ -132,9 +143,13 @@ fn main() {
         let cons = thread::spawn(move || {
 
             println!("Thread n {} created!", i);
-            for _ in 0..3 {
+            loop {
                 let (lock, cvarp, cvarc) = &*shared_cons;
                 let buff = lock.lock().unwrap();
+
+                if buff.nelem == -1 {
+                    break;
+                }
 
                 let mut buff = cvarc.wait_while(buff, |buff| buff.nelem == 0).unwrap();
 
@@ -155,7 +170,6 @@ fn main() {
         handles.push(cons);
     }
 
-    let shared_adder = Arc::clone(&shared);
     let adder = thread::spawn(move || {
         
         let mut sum :i32 = 0;

@@ -94,6 +94,7 @@ fn main() {
     let shared_prod = Arc::clone(&shared);
 
     let prod = thread::spawn(move || {
+
         println!("Produttore creato");
 
         for i in 0..size+1 {
@@ -116,25 +117,7 @@ fn main() {
                 buff.buff[head].b = vec_b.pop().unwrap();
                 buff.head = (head + 1) % 5;
                 buff.nelem += 1;
-               /* for j in 0..5 {
-
-                    if buff.buff[j].a == 0 && buff.buff[j].b == 0 {
-
-                        buff.buff[j].a = match vec_a.pop() {
-                            Some(x) => x,
-                            None => 0
-                        };
-
-                        buff.buff[j].b = match vec_b.pop() {
-                            Some(x) => x,
-                            None => 0
-                        };
-
-                        buff.nelem += 1;
-                        println!("current elements: ({}, {})", buff.buff[j].a, buff.buff[j].b);
-                        break;
-                    }
-                } */
+                println!("Produttore nelem {}", buff.nelem);
                 cvarc.notify_all();
             }
             
@@ -153,6 +136,8 @@ fn main() {
             println!("Thread n {} created!", i);
             loop {
 
+                thread::sleep(Duration::from_secs(1));
+
                 let (lock, cvarp, cvarc) = &*shared_cons;
                 
                 let  buff = lock.lock().unwrap();
@@ -160,7 +145,6 @@ fn main() {
                 let mut buff = cvarc.wait_while(buff, |buff| buff.nelem == 0).unwrap();
 
                 if buff.nelem == -1 {
-                    println!("Thread {} morto", i);
                     break;
                 }
 
@@ -170,19 +154,8 @@ fn main() {
                 buff.tail = (tail + 1) % 5;
                 buff.nelem -= 1;
 
-               /* for j in 0..5 {
-
-                    if buff.buff[j].a != 0 || buff.buff[j].b != 0 {
-                        tx_i.send(buff.buff[j].a * buff.buff[j].b).unwrap();
-                        buff.buff[j].a = 0;
-                        buff.buff[j].b = 0;
-                        buff.nelem -= 1; 
-                        break;
-                    }
-                } */
-
                 cvarp.notify_all();
-                
+              
             };
         });
         handles.push(cons);

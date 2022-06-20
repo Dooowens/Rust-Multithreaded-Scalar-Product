@@ -59,7 +59,6 @@ fn main() {
     let mut vec_b : Vec<i32> = vec![];
 
     let mut size = String::new();
-    let mut n_threads = String::new();
 
     println!("Please input vector size");
 
@@ -68,14 +67,6 @@ fn main() {
         .expect("Failed to read line");
 
     let size: i32 = size.trim().parse().unwrap(); 
-
-    println!("Please input number of threads");
-    
-    io::stdin()
-        .read_line(&mut n_threads)
-        .expect("Failed to read line");
-
-    let n_threads: i32 = n_threads.trim().parse().unwrap(); 
 
     for _ in 0..size {
         vec_a.push(rand::thread_rng().gen_range(1..11));
@@ -99,7 +90,6 @@ fn main() {
 
         for i in 0..size+1 {
           
-
             let (lock, cvarp, cvarc) = &*shared_prod;
             let buff = lock.lock().unwrap();
 
@@ -107,11 +97,8 @@ fn main() {
                 let mut buff = cvarp.wait_while(buff, |buff| buff.nelem != 0).unwrap();
                 buff.nelem = -1;
                 cvarc.notify_all();
-            }
-
-            else {
+            } else {
                 let mut buff = cvarp.wait_while(buff, |buff| buff.nelem == 5).unwrap();
-
                 let head = buff.head;
                 buff.buff[head].a = vec_a.pop().unwrap();
                 buff.buff[head].b = vec_b.pop().unwrap();
@@ -126,7 +113,7 @@ fn main() {
 
     handles.push(prod);
 
-    for i in 0..n_threads {
+    for i in 0..3 {
 
         let tx_i = tx.clone();
         let shared_cons = Arc::clone(&shared);
@@ -134,6 +121,7 @@ fn main() {
         let cons = thread::spawn(move || {
 
             println!("Thread n {} created!", i);
+            
             loop {
 
                 thread::sleep(Duration::from_secs(1));
